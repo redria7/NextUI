@@ -679,7 +679,7 @@ void CFG_print(void)
     if (settings.font == 1)
         printf("\t\"fontpath\": \"%s\"\n", RES_PATH "/font1.ttf");
     else
-        printf("\t\"fontpath\": \"%s\"\n", RES_PATH "/font2.otf");
+        printf("\t\"fontpath\": \"%s\"\n", RES_PATH "/font2.ttf");
 
     printf("}\n");
 }
