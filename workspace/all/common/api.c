@@ -159,6 +159,9 @@ static struct PWR_Context {
 	int charge;
 	int should_warn;
 
+	int update_secs;
+	int poll_network_status;
+
 	SDL_Surface* overlay;
 } pwr = {0};
 
@@ -2781,12 +2784,24 @@ static void PWR_updateBatteryStatus(void) {
 	}
 }
 
+static void PWR_updateNetworkStatus(void) {
+	if(pwr.poll_network_status)
+		PLAT_updateNetworkStatus();
+}
+
+void PWR_updateFrequency(int secs, int updateWifi)
+{
+	if(secs > 0)
+		pwr.update_secs = secs;
+	pwr.poll_network_status = updateWifi;
+}
+
 static void* PWR_monitorBattery(void *arg) {
 	while(1) {
-		// TODO: the frequency of checking could depend on whether 
-		// we're in game (less frequent) or menu (more frequent)
-		sleep(5);
+		struct PWR_Context* pwr_ctx = (struct PWR_Context*) arg;
+		sleep(pwr_ctx->update_secs);
 		PWR_updateBatteryStatus();
+		PWR_updateNetworkStatus();
 	}
 	return NULL;
 }
@@ -2802,14 +2817,17 @@ void PWR_init(void) {
 	
 	pwr.should_warn = 0;
 	pwr.charge = PWR_LOW_CHARGE;
-	
+
+	pwr.update_secs = 5;
+	pwr.poll_network_status = 1;
+
 	if (CFG_getHaptics()) {
 		VIB_singlePulse(VIB_bootStrength, VIB_bootDuration_ms);
 	}
 	PWR_initOverlay();
 	PWR_updateBatteryStatus();
 
-	pthread_create(&pwr.battery_pt, NULL, &PWR_monitorBattery, NULL);
+	pthread_create(&pwr.battery_pt, NULL, &PWR_monitorBattery, &pwr);
 	pwr.initialized = 1;
 }
 void PWR_quit(void) {
@@ -3006,7 +3024,10 @@ void PWR_powerOff(int reboot) {
 	}
 }
 
-static void PWR_enterSleep(void) {
+
+
+static void PWR_enterSleep(void)
+{
 	SDL_PauseAudio(1);
 	LEDS_setIndicator(2,0,5);
 	if (GetHDMI()) {
@@ -3022,7 +3043,10 @@ static void PWR_enterSleep(void) {
 	}
 	system("killall -STOP keymon.elf");
 	system("killall -STOP batmon.elf");
-	
+
+	PWR_updateFrequency(-1, false);
+	WIFI_aboutToSleep();
+
 	sync();
 }
 static void PWR_exitSleep(void) {
@@ -3031,6 +3055,10 @@ static void PWR_exitSleep(void) {
 	if(pwr.is_charging) {
 		LED_setIndicator(2,0xFF0000,-1,2);
 	}
+	
+	PWR_updateFrequency(-1, true);
+	WIFI_wokeFromSleep();
+
 	system("killall -CONT keymon.elf");
 	system("killall -CONT batmon.elf");
 	if (GetHDMI()) {
@@ -3331,3 +3359,7 @@ FALLBACK_IMPLEMENTATION void PLAT_wifiForget(char *ssid, WifiSecurityType sec) {
 FALLBACK_IMPLEMENTATION void PLAT_wifiConnect(char *ssid, WifiSecurityType sec) {}
 FALLBACK_IMPLEMENTATION void PLAT_wifiConnectPass(const char *ssid, WifiSecurityType sec, const char* pass) {}
 FALLBACK_IMPLEMENTATION void PLAT_wifiDisconnect() {}
+FALLBACK_IMPLEMENTATION bool PLAT_wifiDiagnosticsEnabled() { return false; }
+FALLBACK_IMPLEMENTATION void PLAT_wifiDiagnosticsEnable(bool on) {}
+FALLBACK_IMPLEMENTATION void PLAT_wifiPreSleep() {}
+FALLBACK_IMPLEMENTATION void PLAT_wifiPostSleep() {}

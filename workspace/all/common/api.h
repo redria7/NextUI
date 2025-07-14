@@ -445,6 +445,7 @@ void PWR_warn(int enable);
 
 int PWR_ignoreSettingInput(int btn, int show_setting);
 void PWR_update(int* dirty, int* show_setting, PWR_callback_t before_sleep, PWR_callback_t after_sleep);
+void PWR_updateFrequency(int secs, int updateWifi);
 
 void PWR_disablePowerOff(void);
 void PWR_powerOff(int reboot);
@@ -623,6 +624,7 @@ int PLAT_pickSampleRate(int requested, int max);
 
 char* PLAT_getModel(void);
 void PLAT_getOsVersionInfo(char *output_str, size_t max_len);
+void PLAT_updateNetworkStatus();
 int PLAT_isOnline(void);
 typedef enum {
 	SIGNAL_STRENGTH_OFF = -1,
@@ -689,6 +691,7 @@ struct WIFI_network {
 };
 
 struct WIFI_connection {
+	bool valid;
 	char ssid[SSID_MAX];
 	char ip[32];
 	int freq;
@@ -724,6 +727,13 @@ void PLAT_wifiConnect(char *ssid, WifiSecurityType sec);
 void PLAT_wifiConnectPass(const char *ssid, WifiSecurityType sec, const char* pass);
 // disconnect from any active network
 void PLAT_wifiDisconnect();
+// enable wifi diagnostic logging
+bool PLAT_wifiDiagnosticsEnabled();
+// returns true if diagnostic logging is enabled
+void PLAT_wifiDiagnosticsEnable(bool on);
+// handles platform steps for wifi before/after entering sleep
+void PLAT_wifiPreSleep();
+void PLAT_wifiPostSleep();
 
 #define WIFI_init PLAT_wifiInit
 #define WIFI_supported PLAT_hasWifi
@@ -737,5 +747,9 @@ void PLAT_wifiDisconnect();
 #define WIFI_connect PLAT_wifiConnect
 #define WIFI_connectPass PLAT_wifiConnectPass
 #define WIFI_disconnect PLAT_wifiDisconnect
+#define WIFI_diagnosticsEnabled PLAT_wifiDiagnosticsEnabled
+#define WIFI_diagnosticsEnable PLAT_wifiDiagnosticsEnable
+#define WIFI_aboutToSleep PLAT_wifiPreSleep
+#define WIFI_wokeFromSleep PLAT_wifiPostSleep
 
 #endif

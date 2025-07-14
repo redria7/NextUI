@@ -2482,7 +2482,8 @@ int main (int argc, char *argv[]) {
 				Entry *current = qm_row == 0 ? quick->items[qm_col] : quickActions->items[qm_col];
 				char newBgPath[MAX_PATH];
 				char fallbackBgPath[MAX_PATH];
-				sprintf(newBgPath, SDCARD_PATH "/.media/quick_%s.png", current->name);
+				sprintf(newBgPath, SDCARD_PATH "/.media/quick_%s%s.png", current->name, 
+					!strcmp(current->name,"Wifi") && CFG_getWifi() ? "_off" : ""); // wifi or wifi_off, based on state
 				sprintf(fallbackBgPath, SDCARD_PATH "/.media/quick.png");
 				
 				// background
@@ -2596,7 +2597,7 @@ int main (int argc, char *argv[]) {
 
 						int asset = ASSET_WIFI;
 						if (!strcmp(item->name,"Wifi"))
-							asset = is_online ? ASSET_WIFI_OFF : ASSET_WIFI;
+							asset = CFG_getWifi() ? ASSET_WIFI_OFF : ASSET_WIFI;
 						else if (!strcmp(item->name,"Sleep"))
 							asset = ASSET_SUSPEND;
 						else if (!strcmp(item->name,"Reboot"))
