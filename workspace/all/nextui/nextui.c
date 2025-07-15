@@ -808,7 +808,7 @@ static Array* getQuickEntries(void) {
 	Array* entries = Array_new();
 
 	// We assume Menu_init was already called and populated this
-	if (CFG_getShowRecents() && recents->count)
+	if (recents && recents->count)
 		Array_push(entries, Entry_newNamed(FAUX_RECENT_PATH, ENTRY_DIR, "Recents"));
 
 	if (hasCollections())
@@ -852,7 +852,8 @@ static Array* getQuickToggles(void) {
 static Array* getRoot(void) {
     Array* root = Array_new();
 
-    if (CFG_getShowRecents() && hasRecents()) Array_push(root, Entry_new(FAUX_RECENT_PATH, ENTRY_DIR));
+    if (hasRecents() && CFG_getShowRecents()) 
+		Array_push(root, Entry_new(FAUX_RECENT_PATH, ENTRY_DIR));
 
 	Array *entries = getRoms();
 
@@ -870,7 +871,7 @@ static Array* getRoot(void) {
 	Array_yoink(root, entries);
 
 	// Add tools if applicable
-    if (hasTools() && !simple_mode) {
+    if (hasTools() && CFG_getShowTools() && !simple_mode) {
 		char tools_path[256];
 		snprintf(tools_path, sizeof(tools_path), "%s/Tools/%s", SDCARD_PATH, PLATFORM);
         Array_push(root, Entry_new(tools_path, ENTRY_DIR));
