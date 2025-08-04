@@ -172,6 +172,7 @@ static struct PWR_Context
 static struct SND_Context
 {
 	int initialized;
+	bool paused;
 	double frame_rate;
 
 	int sample_rate_in;
@@ -2146,7 +2147,6 @@ static void SND_audioCallback(void *userdata, uint8_t *stream, int len)
 	if (len > 0)
 		memset(out, 0, len * (sizeof(int16_t) * 2));
 }
-
 static void SND_resizeBuffer(void)
 { // plat_sound_resize_buffer
 
@@ -2311,7 +2311,7 @@ float calculateBufferAdjustment(float remaining_space, float targetbuffer_over, 
 	// lets say hovering around 2000 means 2000 samples queue, about 4 frames, so at 17ms(60fps) thats  68ms delay right?
 	// Should have payed attention when my math teacher was talking dammit
 	// Also I chose 3 for pow, but idk if that really the best nr, anyone good in maths looking at my code?
-	float adjustment = 0.000001f + (0.005f - 0.000001f) * pow(normalizedDistance, 3);
+	float adjustment = 0.000001f + (0.005f - 0.000001f) * pow(normalizedDistance, 6);
 
 	if (remaining_space < midpoint)
 	{
@@ -2373,6 +2373,13 @@ size_t SND_batchSamples(const SND_Frame *frames, size_t frame_count)
 	}
 	currentbufferfree = remaining_space;
 
+	// let audio buffer fill a little first and then unpause audio so no underruns occur
+	if (currentbufferfree < snd.frame_count * 0.7f) {
+		if (snd.paused) {
+			SND_pauseAudio(false);
+		}
+	} 
+
 	float tempdelay = ((snd.frame_count - remaining_space) / snd.sample_rate_out) * 1000.0f;
 	currentbufferms = tempdelay;
 
@@ -2388,7 +2395,7 @@ size_t SND_batchSamples(const SND_Frame *frames, size_t frame_count)
 		snd.frame_rate = 60.0f;
 	}
 
-	float bufferadjustment = calculateBufferAdjustment(remaining_space, snd.frame_count * 0.5f, snd.frame_count, frame_count);
+	float bufferadjustment = calculateBufferAdjustment(remaining_space, snd.frame_count * 0.3f, snd.frame_count*0.8f, frame_count);
 
 	if (!isfinite(bufferadjustment))
 	{
@@ -2494,6 +2501,13 @@ size_t SND_batchSamples_fixed_rate(const SND_Frame *frames, size_t frame_count)
 	}
 	// printf("    actual free: %g\n", remaining_space);
 	currentbufferfree = remaining_space;
+	// let audio buffer fill a little first and then unpause audio so no underruns occur
+	if (currentbufferfree < snd.frame_count * 0.7f) {
+		if (snd.paused) {
+			SND_pauseAudio(false);
+		}
+	} 
+
 	float tempdelay = ((snd.frame_count - remaining_space) / snd.sample_rate_out) * 1000;
 	currentbufferms = tempdelay;
 
@@ -2639,7 +2653,7 @@ void SND_init(double sample_rate, double frame_rate)
 
 	LOG_info("We now have audio device #%d\n", snd.device_id);
 
-	snd.frame_count = ((float)spec_out.freq / SCREEN_FPS) * 6; // buffer size based on sample rate out (with 6 frames headroom), ideally you want to use actual FPS but don't know it at this point yet
+	snd.frame_count = ((float)spec_out.freq / SCREEN_FPS) * 8; // buffer size based on sample rate out (with 6 frames headroom), ideally you want to use actual FPS but don't know it at this point yet
 	currentbuffersize = snd.frame_count;
 	snd.sample_rate_in = sample_rate;
 	snd.sample_rate_out = spec_out.freq;
@@ -2647,10 +2661,12 @@ void SND_init(double sample_rate, double frame_rate)
 	currentsamplerateout = snd.sample_rate_out;
 
 	SND_resizeBuffer();
-	SND_pauseAudio(false);
 
+	// start with audiodevice paused so buffer can fill a little, snd_batchsamples will unpause it
+	SND_pauseAudio(true);
 	LOG_info("sample rate: %i (req) %i (rec) [samples %i]\n", snd.sample_rate_in, snd.sample_rate_out, SAMPLES);
 	snd.initialized = 1;
+
 }
 
 void SND_quit(void)
@@ -2695,6 +2711,7 @@ void SND_pauseAudio(bool paused)
 #else
 	SDL_PauseAudio(paused);
 #endif
+snd.paused = paused;
 }
 
 ///////////////////////////////
