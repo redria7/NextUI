@@ -414,7 +414,7 @@ void play_activity_resume(void)
 {
     //LOG_info("\n:: play_activity_resume()");
     sqlite3* game_log_db = play_activity_db_open();
-    int rom_id = play_activity_db_transaction(game_log_db, __db_get_active_closed_activity);
+    int rom_id = __db_get_active_closed_activity(game_log_db);
     play_activity_db_close(game_log_db);
     if (rom_id == ROM_NOT_FOUND) {
         printf("Error: no active rom\n");
